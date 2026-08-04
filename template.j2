@@ -1,0 +1,79 @@
+{# --- Section 1: Switch (S1) Configurations --- #}
+{% if vlans is defined %}
+{% for vlan in vlans %}
+vlan {{ vlan.id }}
+ name {{ vlan.name }}
+exit
+{% endfor %}
+{% endif %}
+
+{% if interfaces is defined %}
+{% for intf in interfaces %}
+interface {{ intf.name }}
+{% if intf.description is defined %}
+ description {{ intf.description }}
+{% endif %}
+{% if intf.mode is defined %}
+ switchport mode {{ intf.mode }}
+{% endif %}
+{% if intf.access_vlan is defined %}
+ switchport access vlan {{ intf.access_vlan }}
+{% endif %}
+{% if intf.ip_address is defined %}
+{% if intf.ip_address == 'dhcp' %}
+ ip address dhcp
+{% else %}
+ ip address {{ intf.ip_address }} {{ intf.subnet_mask }}
+{% endif %}
+{% endif %}
+{% if intf.nat is defined %}
+ ip nat {{ intf.nat }}
+{% endif %}
+ no shutdown
+exit
+{% endfor %}
+{% endif %}
+
+{# --- Section 2: OSPF Routing Configurations --- #}
+{% if ospf is defined %}
+router ospf {{ ospf.process_id }}{% if ospf.vrf is defined %} vrf {{ ospf.vrf }}{% endif %}
+
+ router-id {{ ospf.router_id }}
+{% for net in ospf.networks %}
+ network {{ net.ip }} {{ net.wildcard }} area {{ net.area }}
+{% endfor %}
+{% if ospf.default_originate | default(false) %}
+ default-information originate always
+{% endif %}
+exit
+{% endif %}
+
+{# --- Section 3: Static Routes & NAT Configurations --- #}
+{% if static_routes is defined %}
+{% for route in static_routes %}
+ip route{% if route.vrf is defined %} vrf {{ route.vrf }}{% endif %} {{ route.prefix }} {{ route.mask }} {{ route.next_hop }}
+{% endfor %}
+{% endif %}
+
+{% if nat_rule is defined %}
+ip nat inside source list {{ nat_rule.acl_name }} interface {{ nat_rule.interface }}{% if nat_rule.vrf is defined %} vrf {{ nat_rule.vrf }}{% endif %} overload
+{% endif %}
+
+{# --- Section 4: Access Control Lists (ACL) --- #}
+{% if acls is defined %}
+{% for acl in acls %}
+ip access-list standard {{ acl.name }}
+{% for rule in acl.rules %}
+ {{ rule.action }} {{ rule.source }} {{ rule.wildcard }}
+{% endfor %}
+exit
+{% endfor %}
+{% endif %}
+
+{# --- Section 5: VTY Line Configuration --- #}
+{% if vty is defined %}
+line vty 0 4
+ access-class {{ vty.access_list }} in{% if vty.vrf_also | default(false) %} vrf-also{% endif %}
+
+exit
+{% endif %}
