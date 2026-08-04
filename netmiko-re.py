@@ -63,6 +63,26 @@ for name, dev in routers.items():
             print("   No active interfaces found.")
             
         print("\n")
+
+        # 3. ดึงข้อมูล Routing Table ด้วยคำสั่ง 'show ip route'
+        show_route_output = net_connect.send_command("show ip route")
+        
+        # Regex สำหรับดึงประเภทการเชื่อมต่อ (Type) และ Subnet/IP
+        # แมตช์บรรทัดขึ้นต้นด้วย Code เช่น C, S, O, B, L แล้วตามด้วย Subnet
+        route_pattern = r"^([C|S|O|B|L]\S*)\s+([0-9\.\/]+)"
+        routes = re.findall(route_pattern, show_route_output, re.MULTILINE)
+        
+        print("🗺️  Routing Table (Active Routes):")
+        if routes:
+            print(f"   {'Type':<8} {'Subnet/Network':<20}")
+            print(f"   {'-'*28}")
+            for route_type, network in routes:
+                print(f"   {route_type:<8} {network:<20}")
+        else:
+            # กรณีที่ไม่เจอแบบย่อ สามารถพิมพ์ Raw Output ของ show ip route ออกมาได้โดยตรง
+            print(show_route_output)
+
+        print("\n")
         net_connect.disconnect()
         
     except Exception as e:
